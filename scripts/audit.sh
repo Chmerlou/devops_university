@@ -24,5 +24,15 @@ check "Межсетевой экран активен" "active" "$(sudo ufw stat
 check "Политика incoming равна deny" "deny" "$(sudo ufw status verbose | awk '/^Default:/{print $2}' | cut -d'(' -f1)"
 echo "[3] Учётные записи"
 awk -F: '$3>=1000 && $3<65534 {printf " %s (uid=%s)\n",$1,$3}' /etc/passwd
+echo "[4] Веб-сервер"
+check "Служба nginx активна" "active" "$(systemctl is-active nginx)"
+check "Конфигурация nginx корректна" "0" "$(sudo nginx -t > /dev/null 2>&1; echo $?)"
+# TODO 4в: сертификат истекает не ранее чем через 30 дней
+CERT_DAYS_LEFT=$(sudo openssl x509 -in /etc/ssl/certs/devops.crt -checkend 2592000 -noout > /dev/null 2>&1 && echo "0" || echo "1")
+check "Сертификат истекает не ранее чем через 30 дней" "0" "$CERT_DAYS_LEFT"
+# TODO 4г: нет файлов с правом записи для всех + права ключа 600
+WRITABLE_FILES=$(sudo find /var/www/devops-site -perm -o+w 2>/dev/null | wc -l)
+KEY_RIGHTS=$(sudo stat -c '%a' /etc/ssl/private/devops.key)
+check "Нет файлов с o+w и права ключа 600" "0__600" "${WRITABLE_FILES}__${KEY_RIGHTS}"
 echo "Пройдено: $PASS, не пройдено: $FAIL"
 [[ $FAIL -eq 0 ]] && exit 0 || exit 1

@@ -54,3 +54,28 @@ outgoing: allow
 01-clean-install	После установки ОС и обновления пакетов	Чистая система, оба адаптера настроены, SSH-сервер установлен
 02-keys-configured	После выполнения задания 1	Создан пользователь devops, настроен вход по SSH-ключу, конфиг ~/.ssh/config
 03-ssh-hardened	После выполнения задания 2	SSH на порту 2222, пароли отключены, root запрещён
+
+8. Веб-сервер
+Устанавливаемый пакет: nginx (версия 1.28.3, Ubuntu)
+
+Путь к конфигурации ресурса: /etc/nginx/sites-available/devops-siteАктивирован через символическую ссылку: /etc/nginx/sites-enabled/devops-siteСтандартный ресурс отключён: /etc/nginx/sites-enabled/default (ссылка удалена)
+
+Каталог ресурса: /var/www/devops-site/Владелец: devops:devopsПрава: каталоги — 755, файлы — 644 (модель «владелец пишет, веб-сервер читает»)
+
+Сертификат TLS:
+
+Файл сертификата: /etc/ssl/certs/devops.crt (права 644, открытая часть)
+Файл закрытого ключа: /etc/ssl/private/devops.key (права 600, владелец root)
+Тип: самоподписанный (subject = issuer = CN=devops.local)
+SAN: DNS:devops.local
+Срок действия: 365 дней
+Команда формирования сертификата:
+
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \    -keyout /etc/ssl/private/devops.key \    -out /etc/ssl/certs/devops.crt \    -subj "/CN=devops.local" \    -addext "subjectAltName=DNS:devops.local"
+Прослушиваемые порты: 80 (HTTP, редирект на HTTPS), 443 (HTTPS)
+
+Конфигурация Nginx:
+
+HTTP → HTTPS редирект через return 301 https://$host$request_uri;
+SSL-протоколы: TLSv1.2, TLSv1.3
+Кастомные журналы: /var/log/nginx/devops-site.access.log, /var/log/nginx/devops-site.error.log
