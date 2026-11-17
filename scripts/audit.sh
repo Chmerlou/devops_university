@@ -34,5 +34,15 @@ check "Сертификат истекает не ранее чем через 3
 WRITABLE_FILES=$(sudo find /var/www/devops-site -perm -o+w 2>/dev/null | wc -l)
 KEY_RIGHTS=$(sudo stat -c '%a' /etc/ssl/private/devops.key)
 check "Нет файлов с o+w и права ключа 600" "0__600" "${WRITABLE_FILES}__${KEY_RIGHTS}"
+echo "[5] Контейнеризация"
+check "Служба docker активна" "active" "$(systemctl is-active docker)"
+check "Контейнер СУБД healthy" "healthy" "$(docker inspect -f '{{.State.Health.Status}}' app-db-1 2>/dev/null)"
+# Проверка в): порты 5000 и 5432 не прослушиваются ни на одном адресе, кроме 127.0.0.1
+PORTS_5000=$(sudo ss -tln | awk '$4 ~ /:5000$/ {print $4}' | grep -v '^127\.0\.0\.1:5000$' | wc -l)
+PORTS_5432=$(sudo ss -tln | awk '$4 ~ /:5432$/ {print $4}' | wc -l)
+check "Порты 5000/5432 только на 127.0.0.1" "0__0" "${PORTS_5000}__${PORTS_5432}"
+# Проверка г): права файла ~/app/.env равны 600
+ENV_RIGHTS=$(stat -c '%a' /home/devops/app/.env 2>/dev/null)
+check "Права файла ~/app/.env равны 600" "600" "$ENV_RIGHTS"
 echo "Пройдено: $PASS, не пройдено: $FAIL"
 [[ $FAIL -eq 0 ]] && exit 0 || exit 1

@@ -79,3 +79,32 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \    -keyout /etc/ssl/p
 HTTP → HTTPS редирект через return 301 https://$host$request_uri;
 SSL-протоколы: TLSv1.2, TLSv1.3
 Кастомные журналы: /var/log/nginx/devops-site.access.log, /var/log/nginx/devops-site.error.log
+
+9. Контейнеризация
+Docker Engine: установлен из официального репозитория Docker (не docker.io), версия 27.x (Server)Compose plugin: установлен, версия v2.x
+
+Участники группы docker: devops (предупреждение: участник группы docker фактически имеет права root через монтирование корня хоста)
+
+Расположение проекта на сервере: ~/app/ (~/devops-course-2026/app/)
+
+Содержимое: app.py, requirements.txt, Dockerfile, .dockerignore, .env.example, docker-compose.yml, .env
+Файл .env: ~/app/.env, права 600, владелец devops. Содержит настоящие секреты (POSTGRES_PASSWORD). В репозиторий не попадает (в .gitignore). На сервере создаётся из .env.example с заменой пароля на openssl rand -hex 16.
+
+Публикуемые порты:
+
+app: 127.0.0.1:5000:5000 (только loopback, прямой доступ исключён)
+db: порт не публикуется (доступ только через сеть backend)
+Именованные тома:
+
+db_data (имя проекта: app_db_data) — хранит данные PostgreSQL, сохраняется при docker compose down, удаляется при docker compose down -v
+Образы:
+
+devops-app:1.0 — приложение (Flask + gunicorn), собирается из Dockerfile
+postgres:16-alpine — СУБД (фиксированная мажорная версия)
+Сети:
+
+backend (bridge) — изолированная сеть проекта, app и db разрешаются по имени
+Конфигурация обратного прокси-сервера (Nginx):В блок HTTPS сервера /etc/nginx/sites-available/devops-site добавлен location:
+
+location /app/ {    proxy_pass http://127.0.0.1:5000/;    proxy_set_header Host $host;    proxy_set_header X-Real-IP $remote_addr;    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;    proxy_set_header X-Forwarded-Proto $scheme;}
+Приложение доступно по адресу https://devops.local/app/ (через Nginx, TLS завершается на Nginx).
