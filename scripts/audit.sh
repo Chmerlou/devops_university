@@ -44,5 +44,21 @@ check "Порты 5000/5432 только на 127.0.0.1" "0__0" "${PORTS_5000}__
 # Проверка г): права файла ~/app/.env равны 600
 ENV_RIGHTS=$(stat -c '%a' /home/devops/app/.env 2>/dev/null)
 check "Права файла ~/app/.env равны 600" "600" "$ENV_RIGHTS"
+echo "[6] Контрольная работа № 2"
+# а) Контейнер redis в состоянии healthy
+REDIS_HEALTHY=$(docker compose --project-directory /home/devops/kr2 ps -q redis 2>/dev/null | xargs -I{} docker inspect -f '{{.State.Health.Status}}' {} 2>/dev/null)
+check "Контейнер redis healthy" "healthy" "$REDIS_HEALTHY"
+# б) Порт 8004 опубликован только на 127.0.0.1
+APP_PORT=$(docker compose --project-directory /home/devops/kr2 port app 8004 2>/dev/null)
+check "Порт 8004 только на 127.0.0.1" "127.0.0.1:8004" "$APP_PORT"
+# в) Права файла /home/devops/kr2/.env равны 600
+KR2_ENV_RIGHTS=$(stat -c '%a' /home/devops/kr2/.env 2>/dev/null)
+check "Права /home/devops/kr2/.env равны 600" "600" "$KR2_ENV_RIGHTS"
+# г) Сертификат kr2.crt истекает не ранее чем через 30 дней
+KR2_CERT_DAYS=$(sudo openssl x509 -in /etc/ssl/certs/kr2.crt -checkend 2592000 -noout > /dev/null 2>&1 && echo "0" || echo "1")
+check "Сертификат kr2.crt истекает не ранее 30 дней" "0" "$KR2_CERT_DAYS"
+# д) Ресурс kr2 активирован (символическая ссылка)
+KR2_ENABLED=$(test -L /etc/nginx/sites-enabled/kr2 && echo "0" || echo "1")
+check "Ресурс kr2 активирован" "0" "$KR2_ENABLED"
 echo "Пройдено: $PASS, не пройдено: $FAIL"
 [[ $FAIL -eq 0 ]] && exit 0 || exit 1
